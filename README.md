@@ -2,7 +2,7 @@
 
 # Percy Did It
 
-Situs brand untuk **Percy Did It**, soda buah prebiotik fiktif dengan tema "tersangka kriminal". Empat rasa, empat karakter buah berkacamata, satu tagline: *suspiciously fizzy*. Ditujukan sebagai contoh situs produk minuman yang playful dan penuh animasi scroll. Ini rebuild orisinal yang terinspirasi tampilan dan perilaku sebuah situs referensi: teks, logo, gambar, produk, warna, dan kodenya dibuat baru.
+Situs brand untuk **Percy Did It**, soda buah prebiotik fiktif dengan tema "tersangka kriminal". Empat rasa, empat karakter buah berkacamata, satu tagline: *suspiciously fizzy*. Ditujukan sebagai contoh situs produk minuman yang playful dan penuh animasi scroll. Teks, logo, gambar, produk, warna, dan kodenya dibuat sendiri.
 
 ## Halaman
 
@@ -34,7 +34,7 @@ Situs brand untuk **Percy Did It**, soda buah prebiotik fiktif dengan tema "ters
 
 ## Teknologi
 
-HTML, CSS, dan JavaScript native. Tanpa framework, library, atau build step. Font lokal: **Londrina Solid Black** (judul) dan **BenchNine Bold** (teks). Keduanya pengganti gratis untuk font referensi yang lisensinya tidak jelas, dengan metrik disesuaikan lewat `@font-face`.
+HTML, CSS, dan JavaScript native. Tanpa framework, library, atau build step. Font lokal: **Londrina Solid Black** (judul) dan **BenchNine Bold** (teks). Keduanya font gratis (SIL Open Font License), dengan metrik disesuaikan lewat `@font-face`.
 
 ## Menjalankan
 
@@ -81,7 +81,7 @@ Buka `index.html` langsung di browser. Tidak butuh server.
 
 ## Keterbatasan
 
-- Video hero dan urutan frame kemasan di referensi tidak bisa diakses saat riset, jadi animasi maskot dan kaleng meletup adalah tafsir sendiri.
+- Hero memakai animasi maskot dan kaleng meletup buatan sendiri, tanpa video hero atau urutan frame kemasan.
 - Ikon animasi di hero Case Files dibuat ulang sebagai SVG + CSS.
 - Teks pada gambar kaleng dan kemasan adalah hasil AI, bukan label siap cetak; beberapa huruf "DID IT" tertutup karakter.
 - Foto artikel memakai kaleng polos tanpa label.
