@@ -280,6 +280,8 @@
   var last = performance.now();
   function frame(now) {
     var dt = Math.min(0.1, (now - last) / 1000); last = now;
+    /* move the page first, so every scrub below reads this frame's scroll position */
+    scroller.update(dt);
     for (var i = 0; i < scrubs.length; i++) {
       var s = scrubs[i];
       if (!s.tl) continue;
@@ -393,10 +395,16 @@
   window.addEventListener('touchmove', function (e) { if (scroller.locked && e.cancelable) e.preventDefault(); }, { passive: false });
   window.addEventListener('wheel', function (e) { if (scroller.locked && !e.ctrlKey) e.preventDefault(); }, { passive: false });
 
+  /* Inertial wheel scrolling. The page eases toward a target with a frame-rate
+     independent lerp: no restart per wheel notch, so speed never drops to zero
+     mid-scroll. Positions are kept as floats (scrollY rounds to device pixels). */
+  scroller.update = function () {};
   function smooth() {
     if (reduced || window.matchMedia('(hover: none)').matches) return;
-    var from = 0, to = window.scrollY, t0 = 0, running = false, D = 1200, lastSet = -1;
-    var ez = function (t) { return 1 - Math.pow(1 - t, 5); };
+    var LAMBDA = 6.3; /* ~0.1 per frame at 60fps */
+    var y = window.scrollY, to = y, running = false, lastSet = -1;
+    function stop() { running = false; }
+    scroller.stop = stop;
     window.addEventListener('wheel', function (e) {
       if (e.ctrlKey || scroller.locked) return;
       /* horizontal swipes (trackpad, shift+wheel) stay native: back/forward gestures, side scrollers */
@@ -405,18 +413,14 @@
       if (!d) return;
       /* a scrollable panel under the cursor scrolls itself */
       if (innerScroll(e.target, d)) return;
-      var max = maxScroll(), y = window.scrollY;
-      if (!running) to = y;
+      var max = maxScroll();
+      if (!running) { y = to = window.scrollY; }
       /* already at the edge: let the wheel through so an embedding page (iframe) can scroll */
       if (!running && (d < 0 ? y <= 0 : y >= max - 1)) return;
       e.preventDefault();
       to = Math.max(0, Math.min(max, to + d));
-      from = y;
-      t0 = performance.now();
-      if (!running) { running = true; lastSet = -1; requestAnimationFrame(tick); }
+      if (!running) { running = true; lastSet = -1; }
     }, { passive: false });
-    function stop() { running = false; }
-    scroller.stop = stop;
     window.addEventListener('mousedown', stop);
     window.addEventListener('keydown', stop);
     window.addEventListener('touchstart', stop, { passive: true });
@@ -424,15 +428,15 @@
     window.addEventListener('scroll', function () {
       if (running && lastSet >= 0 && Math.abs(window.scrollY - lastSet) > 3) running = false;
     }, { passive: true });
-    function tick(now) {
+    scroller.update = function (dt) {
       if (!running) return;
-      var p = Math.min(1, Math.max(0, (now - t0) / D));
-      /* the page can get shorter while animating (resize, layout): stay inside it */
-      var y = Math.min(maxScroll(), from + (to - from) * ez(p));
+      var max = maxScroll();
+      if (to > max) to = max;
+      y += (to - y) * (1 - Math.exp(-LAMBDA * dt));
+      if (Math.abs(to - y) < 0.5) { y = to; running = false; }
       window.scrollTo(0, y);
       lastSet = window.scrollY;
-      if (p < 1) requestAnimationFrame(tick); else running = false;
-    }
+    };
   }
 
   /* ---------- helpers ---------- */
