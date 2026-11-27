@@ -366,34 +366,71 @@
   }
 
   /* ---------- smooth scroll ---------- */
-  var scroller = { y: window.scrollY, locked: false };
+  var scroller = { y: window.scrollY, locked: false, stop: function () {} };
+  function maxScroll() { return Math.max(0, document.documentElement.scrollHeight - window.innerHeight); }
+  /* an element between the target and the page that can still scroll in this direction */
+  function innerScroll(n, d) {
+    while (n && n !== document.body && n !== document.documentElement && n.nodeType === 1) {
+      if (n.hasAttribute('data-native-scroll')) return true;
+      if (n.scrollHeight > n.clientHeight + 2) {
+        var oy = getComputedStyle(n).overflowY;
+        if (oy === 'auto' || oy === 'scroll' || n.tagName === 'TEXTAREA') {
+          if (d < 0 ? n.scrollTop > 0 : n.scrollTop + n.clientHeight < n.scrollHeight - 1) return true;
+        }
+      }
+      n = n.parentNode;
+    }
+    return false;
+  }
+  /* while locked (preloader, page exit) no input may move the page */
+  var KEYS = { ' ': 1, PageUp: 1, PageDown: 1, End: 1, Home: 1, ArrowUp: 1, ArrowDown: 1 };
+  window.addEventListener('keydown', function (e) {
+    if (!scroller.locked || !KEYS[e.key]) return;
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+  });
+  window.addEventListener('touchmove', function (e) { if (scroller.locked && e.cancelable) e.preventDefault(); }, { passive: false });
+  window.addEventListener('wheel', function (e) { if (scroller.locked && !e.ctrlKey) e.preventDefault(); }, { passive: false });
+
   function smooth() {
     if (reduced || window.matchMedia('(hover: none)').matches) return;
-    var from = 0, to = window.scrollY, t0 = 0, running = false, D = 1200;
+    var from = 0, to = window.scrollY, t0 = 0, running = false, D = 1200, lastSet = -1;
     var ez = function (t) { return 1 - Math.pow(1 - t, 5); };
     window.addEventListener('wheel', function (e) {
-      if (e.ctrlKey) return;
-      var n = e.target;
-      while (n && n !== document.body && n.nodeType === 1) {
-        if (n.hasAttribute('data-native-scroll') || n.tagName === 'TEXTAREA' && n.scrollHeight > n.clientHeight + 2) return;
-        n = n.parentNode;
-      }
-      e.preventDefault();
-      if (scroller.locked) return;
+      if (e.ctrlKey || scroller.locked) return;
+      /* horizontal swipes (trackpad, shift+wheel) stay native: back/forward gestures, side scrollers */
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       var d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? window.innerHeight : 1);
-      if (!running) to = window.scrollY;
-      var max = document.documentElement.scrollHeight - window.innerHeight;
+      if (!d) return;
+      /* a scrollable panel under the cursor scrolls itself */
+      if (innerScroll(e.target, d)) return;
+      var max = maxScroll(), y = window.scrollY;
+      if (!running) to = y;
+      /* already at the edge: let the wheel through so an embedding page (iframe) can scroll */
+      if (!running && (d < 0 ? y <= 0 : y >= max - 1)) return;
+      e.preventDefault();
       to = Math.max(0, Math.min(max, to + d));
-      from = window.scrollY;
+      from = y;
       t0 = performance.now();
-      if (!running) { running = true; requestAnimationFrame(tick); }
+      if (!running) { running = true; lastSet = -1; requestAnimationFrame(tick); }
     }, { passive: false });
-    window.addEventListener('mousedown', function () { running = false; });
-    window.addEventListener('keydown', function () { running = false; });
+    function stop() { running = false; }
+    scroller.stop = stop;
+    window.addEventListener('mousedown', stop);
+    window.addEventListener('keydown', stop);
+    window.addEventListener('touchstart', stop, { passive: true });
+    /* anything else moved the page (scrollbar, find in page, focus, anchor): hand control back */
+    window.addEventListener('scroll', function () {
+      if (running && lastSet >= 0 && Math.abs(window.scrollY - lastSet) > 3) running = false;
+    }, { passive: true });
     function tick(now) {
       if (!running) return;
       var p = Math.min(1, Math.max(0, (now - t0) / D));
-      window.scrollTo(0, from + (to - from) * ez(p));
+      /* the page can get shorter while animating (resize, layout): stay inside it */
+      var y = Math.min(maxScroll(), from + (to - from) * ez(p));
+      window.scrollTo(0, y);
+      lastSet = window.scrollY;
       if (p < 1) requestAnimationFrame(tick); else running = false;
     }
   }

@@ -16,6 +16,14 @@
   (function () {
     var pre = $('.pre');
     if (!pre || skip || M.reduced) { if (pre) pre.hidden = true; return; }
+    /* the intro always starts at the top: no restored scroll position under the curtain,
+       and no scrolling until the curtain has shrunk into the header */
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    if (!location.hash) {
+      window.scrollTo(0, 0);
+      window.addEventListener('load', function () { if (M.scroller.locked) window.scrollTo(0, 0); });
+    }
+    M.scroller.locked = true;
     var first = !ss('pdi_seen'); ss('pdi_seen', '1');
     var D = first ? 2.9 : 2.2, n = $('.pre-n'), from = first ? 0 : 53, box = $('.pre-box');
     preDelay = D;
@@ -28,7 +36,7 @@
     });
     t.add(n, { s: 0 }, { at: D - 0.5, d: 0.5, ease: 'back.inOut(2.2)' });
     t.add(pre, { o: 0 }, { at: D + 0.8, d: 0.3, ease: 'sine.in' });
-    t.seek(0).play({ done: function () { pre.hidden = true; } });
+    t.seek(0).play({ done: function () { pre.hidden = true; M.scroller.locked = false; } });
     /* the two curtains shrink to the header bar */
     var t0 = performance.now(), H = box.offsetHeight, P = pre.offsetHeight, e1 = M.ease('power3.out'), e2 = M.ease('sine.in');
     var steps = [], acc = 0, i;
@@ -40,6 +48,7 @@
       var a = seg ? steps[seg - 1] : 0;
       n.textContent = Math.round(from + (100 - from) * (a + (steps[seg] - a) * q) / acc) + '%';
       if (s >= D) {
+        M.scroller.locked = false;
         var k = Math.min(1, (s - D) / 0.8);
         box.style.height = (H + (65 - H) * e1(k)) + 'px';
         pre.style.height = (P * (1 - e2(k))) + 'px';
@@ -59,11 +68,12 @@
     if (M.reduced) { location.href = h; return; }
     $('.exit').style.setProperty('--exit', a.getAttribute('data-exit') || '');
     document.documentElement.classList.add('leaving');
+    M.scroller.stop(); M.scroller.locked = true;
     var y = window.scrollY, pg = $('.page');
     if (pg) pg.style.transformOrigin = '50% ' + (y + window.innerHeight / 2) + 'px';
     setTimeout(function () { location.href = h; }, 800);
   });
-  window.addEventListener('pageshow', function (e) { if (e.persisted) document.documentElement.classList.remove('leaving'); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) { document.documentElement.classList.remove('leaving'); M.scroller.locked = false; } });
   $$('[data-back]').forEach(function (b) {
     b.addEventListener('click', function (e) { if (history.length > 1 && document.referrer) { e.preventDefault(); e.stopPropagation(); history.back(); } });
   });
